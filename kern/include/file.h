@@ -40,6 +40,7 @@
  * Prototypes for IN-KERNEL entry points for system call implementations.
  */
 
+
  /*Open a file object*/
 int sys_open(const char *filename, int flags, int32_t *);
 

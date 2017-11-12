@@ -114,12 +114,14 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 	 */
 
 	// Exits the process instead of panicking
-
-	sys__exit(sig);
+	
 
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);
+	sys__exit(sig, true);
 	panic("I don't know how to handle this\n");
+
+	
 }
 
 /*
@@ -235,6 +237,7 @@ mips_trap(struct trapframe *tf)
 	 * Call vm_fault on the TLB exceptions.
 	 * Panic on the bus error exceptions.
 	 */
+	// kprintf("Trapframe EPC: %x", tf->tf_epc);
 	switch (code) {
 	case EX_MOD:
 		if (vm_fault(VM_FAULT_READONLY, tf->tf_vaddr)==0) {

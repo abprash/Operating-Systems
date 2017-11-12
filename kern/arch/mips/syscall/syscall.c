@@ -173,22 +173,30 @@ syscall(struct trapframe *tf)
 				err = sys_fork(tf, (pid_t *)&retval);
 				is64bit = false;
 				break;
-			
+
 			case SYS_execv:
 				err = sys_execv((const char *)tf->tf_a0,(char**) tf->tf_a1);
 				is64bit = false;
 				break;
-			
+
 			case SYS_waitpid:
 				err = sys_waitpid((pid_t)tf->tf_a0, (int *)tf->tf_a1, (int)tf->tf_a2, (pid_t * )&retval);
 				is64bit = false;
 				break;
 
 			case SYS__exit:
-				sys__exit((int)tf->tf_a0);
+				sys__exit((int)tf->tf_a0, false);
 				err = ENOSYS;
 				is64bit = false;
 				break;
+
+			#if OPT_DUMBVM
+			#else
+			case SYS_sbrk:
+				err = sys_sbrk((intptr_t)tf->tf_a0, (void **)&retval);
+				is64bit = false;
+				break;
+			#endif
 
 	    default:
 			kprintf("Unknown syscall %d\n", callno);
@@ -242,14 +250,12 @@ syscall(struct trapframe *tf)
 void
 enter_forked_process(void *parenttf, long unsigned int blank)
 {
-
-	// while(true){}
 	(void)blank;
 
 	//Allocate trapframe on the child process' stack
   struct trapframe childtf;
   childtf = *(struct trapframe *)parenttf;
-
+	kfree(parenttf);
 	as_activate();
 
 
@@ -265,5 +271,4 @@ enter_forked_process(void *parenttf, long unsigned int blank)
 
 	//Enter usermode
 	mips_usermode(&childtf);
-
 }

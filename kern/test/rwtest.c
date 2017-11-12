@@ -11,6 +11,7 @@
 #include <test.h>
 #include <kern/test161.h>
 #include <spinlock.h>
+#include <vm.h>
 
 /*
  * Use these stubs to test your reader-writer locks.
@@ -146,10 +147,13 @@ int rwtest2(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
 
-	kprintf_n("Starting rwt2...\n");
-	success(TEST161_FAIL, SECRET, "rwt2");
-
+	int* intarr[1000];
+	for(int i = 0; i < 1000; i++){
+		intarr[i] = kmalloc(sizeof(int));
+	}
+	(void)intarr;
 	return 0;
+
 }
 
 int rwtest3(int nargs, char **args) {

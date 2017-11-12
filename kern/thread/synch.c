@@ -198,13 +198,13 @@ lock_acquire(struct lock *lock)
 
 
 	spinlock_acquire(&lock->lk_spinlock);
+	HANGMAN_WAIT(&curthread->t_hangman, &lock->lk_hangman);
 
 	//If some other thread holds our lock, we join the wchan and sleep
 
 	//While used in the case of wakeall when another thread already acquires the lock before this one when woken up
 	while(lock->lk_thread != NULL) {
 		/* Call this (atomically) before waiting for a lock */
-		HANGMAN_WAIT(&curthread->t_hangman, &lock->lk_hangman);
 		wchan_sleep(lock->lk_wchan, &lock->lk_spinlock);
 	}
 

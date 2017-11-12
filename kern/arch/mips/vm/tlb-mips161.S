@@ -145,7 +145,7 @@ tlb_probe:
    /*
     * If the high bit (CIN_P) of c0_index is set, the probe failed.
     * The high bit is not set <--> c0_index (now in t0) >= 0.
-    */
+    */  
 
    bgez t0, 1f		/* did probe succeed? if so, skip forward */
    nop			/* delay slot */

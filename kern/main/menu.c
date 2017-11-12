@@ -48,6 +48,7 @@
 #include "opt-net.h"
 #include "opt-synchprobs.h"
 #include "opt-automationtest.h"
+#include <process.h>
 
 /*
  * In-kernel menu and command dispatcher.
@@ -126,7 +127,7 @@ common_prog(int nargs, char **args)
 	if (proc == NULL) {
 		return ENOMEM;
 	}
-
+	proc->ppid = curproc->pid;
 	tc = thread_count;
 
 	result = thread_fork(args[0] /* thread name */,
@@ -138,7 +139,11 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
-
+	pid_t whatever;
+	result = sys_waitpid(proc->pid, NULL, 0, &whatever);
+	if(result) return result;
+	//TODO
+	//Upon waking up. destroy the processtable
 	/*
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.

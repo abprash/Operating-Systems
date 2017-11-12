@@ -37,6 +37,8 @@
 
 #define PAGE_SIZE  4096         /* size of VM page */
 #define PAGE_FRAME 0xfffff000   /* mask for getting page number from addr */
+#define INVAL_PPN 0xfffff000 >> 12 /* 0xfffff000 >> 12 */
+#define TEMP_PPN 0xffffe000 >> 12
 
 /*
  * MIPS-I hardwired memory layout:
@@ -66,6 +68,7 @@
  * a valid address, and will make a *huge* mess if you scribble on it.
  */
 #define PADDR_TO_KVADDR(paddr) ((paddr)+MIPS_KSEG0)
+#define KVADDR_TO_PADDR(vaddr) ((vaddr)-MIPS_KSEG0)
 
 /*
  * The top of user space. (Actually, the address immediately above the

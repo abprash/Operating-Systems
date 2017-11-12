@@ -33,6 +33,7 @@
 #include <proc.h>
 #include <lib.h>
 #include <kern/errno.h>
+#include <file.h>
 
 struct filehandle **
 filetable_create(){
@@ -58,6 +59,7 @@ filetable_createcopy(struct filehandle **src){
     if(filetable[i] != NULL){
       lock_acquire(filetable[i]->fh_lock);
       filetable[i]->fh_refcount++;
+      // kprintf("\nFilehandle copied Refcount: %d\n", filetable[i]->fh_refcount);
       lock_release(filetable[i]->fh_lock);
     }
   }
@@ -68,15 +70,13 @@ filetable_createcopy(struct filehandle **src){
 void
 filetable_destroy(struct filehandle **filetable){
   for(unsigned int i = 0; i < 64; i++){
-    filehandle_destroy(filetable[i]);
-    filetable[i] = NULL;
+    if(filetable[i] != NULL)filetable_remove(filetable, i);
   }
   kfree(filetable);
 }
 
 int
 filetable_add(struct filehandle **filetable, struct filehandle *filehandle){
-
   //Searchs for spot in filetable
   for(int i = 0; i < 64; i++){
 

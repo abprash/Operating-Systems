@@ -38,26 +38,25 @@
  filehandle_create(const char *name){
    struct filehandle *filehandle;
 
-   filehandle = kmalloc(sizeof(filehandle));
+   filehandle = kmalloc(sizeof(struct filehandle));
  	 if(filehandle == NULL){
  	 	return NULL;
 	 }
 
- 	//set the name
- 	filehandle->fh_name = kstrdup(name);
- 	if(filehandle->fh_name == NULL){
- 		kfree(filehandle);
- 		return NULL;
- 	}
+   filehandle->fh_name = kstrdup(name);
+   if(filehandle->fh_name == NULL){
+     kfree(filehandle);
+     return NULL;
+   }
 
   //create and associate lock
-  filehandle->fh_lock = lock_create(name);
+  filehandle->fh_lock = lock_create("lock");
   if(filehandle->fh_lock == NULL){
     filehandle_destroy(filehandle);
     return NULL;
   }
 
-  filehandle->fh_refcount = 1;
+  filehandle->fh_refcount = 0;
   filehandle->fh_offset = 0;
   filehandle->fh_flag = -3;
   filehandle->fh_fileobj = NULL;
@@ -68,16 +67,12 @@
 
 void
 filehandle_destroy(struct filehandle *filehandle){
-
-  if(filehandle != NULL){
-
-    //No other processes point to this filehandle
-    if(filehandle->fh_refcount == 0){
-      kfree(filehandle->fh_name);
-      vfs_close(filehandle->fh_fileobj);
-      if(filehandle->fh_fileobj != NULL) kfree(filehandle->fh_fileobj);
-      lock_destroy(filehandle->fh_lock);
-      kfree(filehandle);
-    }
+  //No other processes point to this filehandle
+  if(filehandle->fh_refcount == 0){
+    vfs_close(filehandle->fh_fileobj);
+    // if(filehandle->fh_fileobj->vn_refcount == 1) kfree(filehandle->fh_fileobj);
+    lock_destroy(filehandle->fh_lock);
+    kfree(filehandle->fh_name);
+    kfree(filehandle);
   }
 }

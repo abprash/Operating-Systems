@@ -56,6 +56,7 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retaddr){
   }
 
   struct proc *parent = curproc;
+  // kprintf("\nProcess %d Waiting On %d", curproc->pid, pid);
 
   struct proc *child;
 
@@ -63,7 +64,7 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retaddr){
   bool procfound = false;
   lock_acquire(ptlock);
   for(int i = 0; i < PROC_MAX; i++){
-    if(processtable[i]->pid == pid){
+    if(processtable[i] != NULL && processtable[i]->pid == pid){
       child = processtable[i];
       procfound = true;
       break;
@@ -83,16 +84,22 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retaddr){
 
   //If the process hasn't exited, we wait
   if(!child->exstatus) P(child->p_sem);
+  // kprintf("\nProcess %d No Longer Waiting\n", curproc->pid);
 
+  *retaddr = child->pid;
   //Otherwise, we go through signaling the necessary processes
   if(status != NULL){
     int result = copyout(&child->excode, (userptr_t)status, sizeof(int));
-    if(result) return result;
+    if(result){
+      proc_destroy(child);
+      return result;
+    }
   }
 
 
-  *retaddr = child->pid;
 
+  //Done using child process, can now safely destory it
+  proc_destroy(child);
   return 0;
 
 }

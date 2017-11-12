@@ -107,5 +107,12 @@
 /* Max number of iovec structures at once for readv/writev/preadv/pwritev */
 #define __IOV_MAX       1024
 
+/*
+Page states for each page
+*/
+#define __CLEAN_STATE	1
+#define __DIRTY_STATE	2
+#define __FREE_STATE	3
+#define __FIXED_STATE	4
 
 #endif /* _KERN_LIMITS_H_ */

@@ -50,4 +50,8 @@
 #define IOV_MAX         __IOV_MAX
 #define PROC_MAX        __PROC_MAX
 
+#define CLEAN           __CLEAN_STATE
+#define DIRTY           __DIRTY_STATE
+#define FIXED           __FIXED_STATE
+#define FREE            __FREE_STATE
 #endif /* _LIMITS_H_ */

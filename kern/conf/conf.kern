@@ -349,7 +349,7 @@ file      proc/proc.c
 #
 
 file      vm/kmalloc.c
-file      vm/vm.c
+optofffile dumbvm   vm/vm.c
 #file      vm/coremap.c
 
 optofffile dumbvm   vm/addrspace.c
@@ -405,6 +405,7 @@ file      syscall/execv_syscalls.c
 file      syscall/waitpid_syscalls.c
 file      syscall/getpid_syscalls.c
 file      syscall/exit_syscalls.c
+file      syscall/sbrk_syscalls.c
 #
 # Startup and initialization
 #

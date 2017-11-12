@@ -298,6 +298,7 @@ expect_segfault(segfault_fn func)
 			}
 		}
 		else  {
+			// tprintf("\nExit code was: %d, translates to: %d", status, WTERMSIG(status));
 			errx(1, "child exited, expected segfault");
 		}
 	}
@@ -1021,7 +1022,7 @@ static
 void
 stresstest(unsigned long seed, bool large)
 {
-	const unsigned loops = 10000;
+	const unsigned loops = 1000;
 	const unsigned dot = 200;
 
 	void *op;
@@ -1165,7 +1166,7 @@ test23(void)
 	// should ever be required. This test doesn't make much sense to run with
 	// more than 4M or with swap enabled.
 	void *start;
-	int num_pages = 1030;
+	int num_pages = 10000;
 	int num;
 
 	start = dosbrk(PAGE_SIZE);
@@ -1238,31 +1239,39 @@ main(int argc, char *argv[])
 
 	setup();
 
-	if (argc > 1) {
-		for (i=1; i<argc; i++) {
-			dotest(atoi(argv[i]));
-		}
-		return 0;
-	}
+	(void)i;
+	(void)tn;
+	(void)j;
+	(void)menu;
+	(void)argc;
+	(void)argv;
+	dotest(17);
 
-	while (1) {
-		if (menu) {
-			for (j=0; j<numtests; j++) {
-				tprintf("  %2d  %s\n", tests[j].num,
-				       tests[j].desc);
-			}
-			menu = false;
-		}
-		tprintf("sbrktest: ");
-		tn = geti();
-		if (tn < 0) {
-			break;
-		}
-
-		if (dotest(tn)) {
-			menu = true;
-		}
-	}
+	// if (argc > 1) {
+	// 	for (i=1; i<argc; i++) {
+	// 		dotest(atoi(argv[i]));
+	// 	}
+	// 	return 0;
+	// }
+	//
+	// while (1) {
+	// 	if (menu) {
+	// 		for (j=0; j<numtests; j++) {
+	// 			tprintf("  %2d  %s\n", tests[j].num,
+	// 			       tests[j].desc);
+	// 		}
+	// 		menu = false;
+	// 	}
+	// 	tprintf("sbrktest: ");
+	// 	tn = geti();
+	// 	if (tn < 0) {
+	// 		break;
+	// 	}
+	//
+	// 	if (dotest(tn)) {
+	// 		menu = true;
+	// 	}
+	// }
 
 	return 0;
 }

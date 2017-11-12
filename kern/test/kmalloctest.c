@@ -500,6 +500,7 @@ kmalloctest5(int nargs, char **args)
 	orig_used = coremap_used_bytes();
 	known_pages = num_cpus + num_ptr_blocks + 1;
 	if (orig_used < known_pages * PAGE_SIZE) {
+		kprintf("allocated: %d, known: %d", orig_used, known_pages);
 		panic ("Not enough pages initially allocated");
 	}
 	if ((orig_used % PAGE_SIZE) != 0) {

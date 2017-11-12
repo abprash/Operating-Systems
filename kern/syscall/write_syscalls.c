@@ -47,7 +47,7 @@ ssize_t
 sys_write(int fd, const_userptr_t buf, size_t buflen, int32_t *retaddr){
 
   //Get's the current process' filetable
-  struct filehandle **filetable = curthread->t_proc->p_filetable;
+  struct filehandle **filetable = curproc->p_filetable;
 
   //Checks if the given fd is a valid index, if not, return error
   if(fd >= MAX_FILES || fd < 0){
@@ -74,10 +74,8 @@ sys_write(int fd, const_userptr_t buf, size_t buflen, int32_t *retaddr){
   struct uio uio;
   struct iovec iovec;
 
-  // kprintf("/n Lock name: %s /n", filehandle->fh_lock->lk_name);
-
   //Initialize the uio with a userpointer
-  uio_uinit(&iovec, &uio, (void *)buf, buflen, filehandle->fh_offset, UIO_WRITE, curthread->t_proc->p_addrspace);
+  uio_uinit(&iovec, &uio, (void *)buf, buflen, filehandle->fh_offset, UIO_WRITE, curproc->p_addrspace);
 
 	//Writes to the file for us
   int result = VOP_WRITE(filehandle->fh_fileobj, &uio);
@@ -97,7 +95,6 @@ sys_write(int fd, const_userptr_t buf, size_t buflen, int32_t *retaddr){
   *retaddr = retval;
 
   lock_release(filehandle->fh_lock);
-  // kprintf("/n Lock name: %s /n", filehandle->fh_lock->lk_name);
 
   //returns 0 to signal no error occured
 	return 0;

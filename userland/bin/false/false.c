@@ -29,6 +29,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /*
  * false - fail.
@@ -41,5 +42,6 @@ int
 main(void)
 {
 	/* Just exit with a failure code. */
+	printf("falseeee");
 	exit(1);
 }

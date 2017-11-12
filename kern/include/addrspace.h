@@ -38,6 +38,14 @@
 #include <vm.h>
 #include "opt-dumbvm.h"
 
+#define RD          1
+#define WR          2
+#define EXE         4
+
+
+#define STACKSIZE   1024 * PAGE_SIZE
+#define STACKBOTTOM USERSTACK - STACKSIZE - 1
+
 struct vnode;
 
 
@@ -58,10 +66,54 @@ struct addrspace {
         size_t as_npages2;
         paddr_t as_stackpbase;
 #else
-        /* Put stuff here for your VM system */
+        //Stack pointer
+        vaddr_t stackptr;
+
+        //Page table list head and tail
+        struct pte *pt_head;
+
+        //Region list head and tail
+        struct region *reg_head;
+
+        //Heap pointer
+        struct region *heap;
+        //Lock for synchronized changing of the heap
+        struct lock *hplock;
+
 #endif
 };
 
+struct pte{
+  vaddr_t vpn;
+  paddr_t ppn;
+  int slot;
+  //Look above for permission definitions
+  unsigned int permissions: 3;
+  //Points to the next pte, null if the last pte
+  struct pte *next;
+  struct lock *lock;
+};
+
+struct region{
+  //Start address
+  vaddr_t vaddr;
+
+  //Region size
+  size_t size;
+
+  //Region permissions
+  int readable;
+  int writeable;
+  int executable;
+
+  //Previous premissions
+  int prev_read;
+  int prev_write;
+  int prev_exec;
+
+  //Pointer to next region
+  struct region *next;
+};
 /*
  * Functions in addrspace.c:
  *
@@ -103,6 +155,17 @@ struct addrspace {
  * functions are found in dumbvm.c.
  */
 
+//Returns a copy of a given region
+struct region * reg_copy(struct region *);
+
+//Returns a copy of a given PTE
+struct pte * pte_copy(struct pte *);
+
+//Called in vm_fault to swap a page in that is stored on swapdisk
+void swapin(struct pte *);
+
+paddr_t evictpage(void);
+
 struct addrspace *as_create(void);
 int               as_copy(struct addrspace *src, struct addrspace **ret);
 void              as_activate(void);
@@ -114,6 +177,7 @@ int               as_define_region(struct addrspace *as,
                                    int readable,
                                    int writeable,
                                    int executable);
+void              as_define_heap(struct addrspace *as);
 int               as_prepare_load(struct addrspace *as);
 int               as_complete_load(struct addrspace *as);
 int               as_define_stack(struct addrspace *as, vaddr_t *initstackptr);

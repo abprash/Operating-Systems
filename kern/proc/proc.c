@@ -64,7 +64,9 @@ struct proc *kproc;
  * The process table for the userspace processes, indexed 0-MAX_PID
  */
 
-struct proc **processtable;
+static int pt_lastindex;
+
+struct proc *processtable[128];
 
 struct lock *ptlock;
 
@@ -84,22 +86,18 @@ static
 struct proc *
 proc_create(const char *name)
 {
+	(void)name;
 	struct proc *proc;
 
 	proc = kmalloc(sizeof(*proc));
 	if (proc == NULL) {
 		return NULL;
 	}
-	proc->p_name = kstrdup(name);
-	if (proc->p_name == NULL) {
-		kfree(proc);
-		return NULL;
-	}
 
 	proc->p_numthreads = 0;
 	spinlock_init(&proc->p_lock);
 
-	proc->p_sem = sem_create(proc->p_name, 0);
+	proc->p_sem = sem_create("p sem", 0);
 	if(proc->p_sem == NULL){
 		kfree(proc->p_name);
 		kfree(proc);
@@ -115,10 +113,11 @@ proc_create(const char *name)
 	//Associates a new filetable for every process created
 	proc->p_filetable = filetable_create();
 
-	proc->exstatus = false;
-
 	// Add's the process to the processtable and sets it PID
 	processtable_add(proc);
+
+	proc->exstatus = false;
+	proc->excode = 0;
 
 
 
@@ -134,6 +133,7 @@ proc_create(const char *name)
 void
 proc_destroy(struct proc *proc)
 {
+	// kprintf("\nDestroying Process: %d\n", proc->pid);
 	/*
 	 * You probably want to destroy and null out much of the
 	 * process (particularly the address space) at exit time if
@@ -204,22 +204,20 @@ proc_destroy(struct proc *proc)
 		}
 		as_destroy(as);
 	}
-
-	// if(proc->p_filetable != NULL){
-	//
-	// 	struct filetable *ft;
-	//
-	// 	if(proc != curproc){
-	// 		ft = proc->p_filetable;
-	// 		proc->p_filetable = NULL;
-	// 	}
-	// 	//filetable_destroy(ft);
-	// }
-
+	//Prevents race condition in which we are freeing addrspace refernces in free_kpages
+	while(proc->p_numthreads != 0){}
 	KASSERT(proc->p_numthreads == 0);
+	filetable_destroy(proc->p_filetable);
+	sem_destroy(proc->p_sem);
+	for(int i = 0; i < PROC_MAX; i++){
+    if(processtable[i] != NULL && processtable[i]->pid == proc->pid){
+      processtable[i] = NULL;
+      break;
+    }
+  }
+	// kprintf("After removal:\n");
+	// processtable_print();
 	spinlock_cleanup(&proc->p_lock);
-
-	kfree(proc->p_name);
 	kfree(proc);
 }
 
@@ -239,19 +237,21 @@ void
 proctable_bootstrap(){
 	// Initializes our processtable and pidcounter
 	// spinlock_init(ptlock);
+	pt_lastindex = 0;
 	ptlock_created = false;
 	pidcounter = 2;
-	processtable = kmalloc(sizeof(struct proc *) * PROC_MAX);
-	KASSERT(processtable != NULL);
-	for(int i = 0; i < PROC_MAX; i++){
-		processtable[i] = NULL;
-	}
+	// processtable = kmalloc(sizeof(struct proc *) * PROC_MAX);
+	// for(int i = 0; i < PROC_MAX; i++){
+	// 	processtable[i] = NULL;
+	// }
 }
 
 void
 proctable_lock_bootstrap(){
 	ptlock = lock_create("ptable");
+	lock_acquire(ptlock);
 	ptlock_created = true;
+	lock_release(ptlock);
 }
 
 /*
@@ -265,10 +265,10 @@ proc_create_runprogram(const char *name)
 {
 
 
-	processtable = kmalloc(sizeof(struct proc *) * PROC_MAX);
-	for(int i = 0; i < PROC_MAX; i++){
-		processtable[i] = NULL;
-	}
+	// processtable = kmalloc(sizeof(struct proc *) * PROC_MAX);
+	// for(int i = 0; i < PROC_MAX; i++){
+	// 	processtable[i] = NULL;
+	// }
 
 	struct proc *newproc;
 	struct filehandle *stdin;
@@ -296,49 +296,54 @@ proc_create_runprogram(const char *name)
 		return NULL;
 	}
 
+	//TODO THE ORDER OF THESE EFFECTS WHICH ONE IS FUCKED UP MEANING THERE IS SOME RACE CONDITION
+	stderr = filehandle_create("stderr");
 	stdin = filehandle_create("stdin");
 	stdout = filehandle_create("stdout");
-	stderr = filehandle_create("stderr");
-	if(stderr == NULL){
+	if(stdout == NULL){
 		//filetable_destroy(newproc->p_filetable);
 		proc_destroy(newproc);
 		return NULL;
 	}
 
-	char *con = kstrdup("con:");
+	char *con1 = kstrdup("con:");
 
-	result = vfs_open(con, O_RDONLY, 0, &vin);
+	result = vfs_open(con1, O_RDONLY, 0, &vin);
 	if(result){
 		//filetable_destroy(newproc->p_filetable);
 		proc_destroy(newproc);
 		return NULL;
 	}
 
+	// kfree(con);
 	stdin->fh_fileobj = vin;
 	filetable_add(newproc->p_filetable, stdin);
 
-	con = kstrdup("con:");
+	char *con2 = kstrdup("con:");
 
-	result = vfs_open(con, O_WRONLY, 0, &vout);
+	result = vfs_open(con2, O_WRONLY, 0, &vout);
 	if(result){
 		//filetable_destroy(newproc->p_filetable);
 		proc_destroy(newproc);
 		return NULL;
 	}
 
+	// kfree(con);
 	stdout->fh_fileobj = vout;
 	filetable_add(newproc->p_filetable, stdout);
 
-	con = kstrdup("con:");
+	char *con3 = kstrdup("con:");
 
-	result = vfs_open(con, O_WRONLY, 0, &verr);
+	result = vfs_open(con3, O_WRONLY, 0, &verr);
 	if(result){
 		//filetable_destroy(newproc->p_filetable);
 		proc_destroy(newproc);
 		return NULL;
 	}
 	//freeing the con
-	kfree(con);
+	kfree(con1);
+	kfree(con2);
+	kfree(con3);
 	stderr->fh_fileobj = verr;
 	filetable_add(newproc->p_filetable, stderr);
 
@@ -458,25 +463,44 @@ proc_setas(struct addrspace *newas)
 
 int
 processtable_add(struct proc *proc){
-	if(ptlock_created) lock_acquire(ptlock);
-	for(int i = 0; i < PROC_MAX; i++){
+	//Gross because i implemented read lock read...getting desparate
+	bool spot = false;
+	if(pt_lastindex == PROC_MAX) pt_lastindex = 0;
+	for(int i = pt_lastindex; i < PROC_MAX; i++){
 		if(processtable[i] == NULL){
-			processtable[i] = proc;
-			proc->pid = (pid_t)(pidcounter++);
-			if(ptlock_created) lock_release(ptlock);
-			return 0;
+			spot = true;
+			if(ptlock_created) lock_acquire(ptlock);
+			for(int y = i; y < PROC_MAX; y++){
+				if(processtable[y] == NULL){
+					processtable[y] = proc;
+					proc->pid = (pid_t)(pidcounter++);
+					pt_lastindex = y + 1;
+					if(ptlock_created) lock_release(ptlock);
+					return 0;
+				}
+			}
+			for(int y = 0; y < PROC_MAX; y++){
+				if(processtable[y] == NULL){
+					processtable[y] = proc;
+					proc->pid = (pid_t)(pidcounter++);
+					pt_lastindex = y + 1;
+					if(ptlock_created) lock_release(ptlock);
+					return 0;
+				}
+			}
 		}
 	}
 	proc->pid = (pid_t) -1;
-	if(ptlock_created) lock_release(ptlock);
+	if(ptlock_created && spot) lock_release(ptlock);
 	return ENPROC;
-	// processtable_print();
 }
 
-void
-processtable_print(){
-	for(int i = 0; i < PROC_MAX; i++){
-		if(processtable[i] == NULL) kprintf("N");
-		else kprintf("%d", processtable[i]->pid);
-	}
-}
+// void
+// processtable_print(){
+
+// 	for(int i = 0; i < 30; i++){
+// 		if(processtable[i] == NULL) kprintf("N, ");
+// 		else kprintf("%d, ", processtable[i]->pid);
+// 	}
+// 	kprintf("\n");
+// }

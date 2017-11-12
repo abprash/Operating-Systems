@@ -833,6 +833,45 @@ thread_exit(void)
 	panic("braaaaaaaiiiiiiiiiiinssssss\n");
 }
 
+//Thread exit clone to also destory the process for use in sys__exit
+void
+threadexit_procdest(void)
+{
+	struct thread *cur;
+
+	cur = curthread;
+
+	/*
+	 * Detach from our process. You might need to move this action
+	 * around, depending on how your wait/exit works.
+	 */
+ 	struct proc *proc = cur->t_proc;
+	proc_remthread(cur);
+
+	/* Make sure we *are* detached (move this only if you're sure!) */
+	KASSERT(cur->t_proc == NULL);
+
+	/* Check the stack guard band. */
+	thread_checkstack(cur);
+
+
+	// Decrement the thread count and notify anyone interested.
+	if (thread_count) {
+		spinlock_acquire(&thread_count_lock);
+		--thread_count;
+		wchan_wakeall(thread_count_wchan, &thread_count_lock);
+		spinlock_release(&thread_count_lock);
+	}
+
+
+	/* Interrupts off on this processor */
+	splhigh();
+		proc_destroy(proc);
+	thread_switch(S_ZOMBIE, NULL, NULL);
+	panic("braaaaaaaiiiiiiiiiiinssssss\n");
+}
+
+
 /*
  * Yield the cpu to another process, but stay runnable.
  */

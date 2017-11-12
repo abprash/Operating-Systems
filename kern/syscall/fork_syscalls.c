@@ -49,72 +49,85 @@ sys_fork(struct trapframe *parenttf, pid_t *retaddr){
     return ENOMEM;
   }
 
-  //Make a copy of the parenttf onto the heap to be passed to forkentry
-  struct trapframe *temptf = kmalloc(sizeof(struct trapframe));
-  if(temptf == NULL){
-    kfree(child);
-    return ENOMEM;
-  }
-
   //Adds the process to the process table and gives it a pid
   int result = processtable_add(child);
   if(result){
     kfree(child);
-    kfree(temptf);
     return result;
   }
 
   //For reference to the parent
-  struct proc *parent = curthread->t_proc;
+  struct proc *parent = curproc;
+  //Initialize the child process
 
-  //Assigns the new process' PPID to the caller's PID
-  child->ppid = parent->pid;
+  child->p_numthreads = 0;
+	spinlock_init(&child->p_lock);
+
+
+  //Give the child a semaphore
+  child->p_sem = sem_create("", 0);
+  if(child->p_sem == NULL){
+    spinlock_cleanup(&child->p_lock);
+    kfree(child);
+    return ENOMEM;
+  }
 
   //Declare an addrspace as_copy to then copy into
   struct addrspace *tempas;
   result = as_copy(parent->p_addrspace, &tempas);
   if(result){
+    sem_destroy(child->p_sem);
+    spinlock_cleanup(&child->p_lock);
     kfree(child);
-    kfree(temptf);
     return result;
   }
   child->p_addrspace = tempas;
-
-  //Copy the parent filetable
-  child->p_filetable = filetable_createcopy(parent->p_filetable);
-  if(child->p_filetable == NULL){
-    kfree(child);
-    kfree(temptf);
-    return ENOMEM;
-  }
 
   //Copy cwd
   child->p_cwd = parent->p_cwd;
   VOP_INCREF(child->p_cwd);
 
-  //Give the child a semaphore
-  child->p_sem = sem_create("", 0);
-  if(child->p_sem == NULL){
-    kfree(temptf);
-    filetable_destroy(child->p_filetable);
+
+  //Copy the parent filetable
+  child->p_filetable = filetable_createcopy(parent->p_filetable);
+  if(child->p_filetable == NULL){
+    as_destroy(tempas);
+    sem_destroy(child->p_sem);
+    spinlock_cleanup(&child->p_lock);
     kfree(child);
     return ENOMEM;
   }
 
-  //Makes sure that it isn't simply copying address
-  *temptf = *parenttf;
+  //Assigns the new process' PPID to the caller's PID
+  child->ppid = parent->pid;
+
+  child->exstatus = false;
+	child->excode = 0;
+
+  //Make a copy of the parenttf onto the heap to be passed to forkentry
+  struct trapframe *temptf = kmalloc(sizeof(struct trapframe));
+  temptf = memcpy(temptf, parenttf, sizeof(struct trapframe));
+  if(temptf == NULL){
+    filetable_destroy(child->p_filetable);
+    as_destroy(tempas);
+    sem_destroy(child->p_sem);
+    spinlock_cleanup(&child->p_lock);
+    kfree(child);
+    return ENOMEM;
+  }
 
   result = thread_fork(curthread->t_name, child, enter_forked_process, (void *)temptf, 0);
   if(result){
     kfree(temptf);
+    sem_destroy(child->p_sem);
+    as_destroy(tempas);
+    spinlock_cleanup(&child->p_lock);
     filetable_destroy(child->p_filetable);
     kfree(child);
     return ENOMEM;
   }
-  // while(true){}
   //Ensures that the parent gets the expected return value
   *retaddr = child->pid;
-
 
   return 0;
 

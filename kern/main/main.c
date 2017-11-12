@@ -51,6 +51,7 @@
 #include <kern/test161.h>
 #include <version.h>
 #include "autoconf.h"  // for pseudoconfig
+#include "opt-dumbvm.h"
 
 
 /*
@@ -108,7 +109,11 @@ boot(void)
 
 	/* Early initialization. */
 	ram_bootstrap();
+  #if OPT_DUMBVM
+  #else
   	cm_bootstrap();
+    printCoreMap();
+  #endif
   	proctable_bootstrap();
 	proc_bootstrap();
 	thread_bootstrap();
@@ -129,7 +134,12 @@ boot(void)
 
 	/* Late phase of initialization. */
 	// vm_bootstrap();
+  #if OPT_DUMBVM
+  #else
+  	swap_bootstrap();
+  #endif
 	kprintf_bootstrap();
+  printCoreMap();
 	thread_start_cpus();
 	test161_bootstrap();
 

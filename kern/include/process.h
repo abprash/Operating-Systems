@@ -53,7 +53,13 @@ pid_t sys_fork(struct trapframe *, pid_t *);
 int sys_execv(const char *, char **);
 
 /*Exits the current process, does not return*/
-void sys__exit(int);
+void sys__exit(int, bool);
+
+/*Extends the size of the process' addrspace heap*/
+#if OPT_DUMBVM
+#else
+int sys_sbrk(intptr_t, void **);
+#endif
 
 /*Add more system calls as needed*/
 #endif /* _PROCESS_H_ */

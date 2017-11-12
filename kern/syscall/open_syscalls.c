@@ -55,8 +55,7 @@ sys_open(const char *filename, int flags, int32_t *retaddr){
 	char name[__PATH_MAX];
 
 	//check the filename
-	size_t actsize;
-	result = copyinstr((const_userptr_t) filename, name, (size_t)sizeof(name) * __PATH_MAX, &actsize);
+	result = copyinstr((const_userptr_t) filename, name, sizeof(name), NULL);
 	if(result) return result;
 
 	//create the vnode
@@ -68,11 +67,10 @@ sys_open(const char *filename, int flags, int32_t *retaddr){
 	}
 
 	//get the filetable from the current process
-	struct filehandle **filetable = curthread->t_proc->p_filetable;
+	struct filehandle **filetable = curproc->p_filetable;
 
 	//create the file handle
-	char *hname = kstrdup(name);
-	struct filehandle *filehandle = filehandle_create(hname);
+	struct filehandle *filehandle = filehandle_create(name);
 	KASSERT(filehandle != NULL);
 
 	lock_acquire(filehandle->fh_lock);
@@ -86,8 +84,8 @@ sys_open(const char *filename, int flags, int32_t *retaddr){
 	fd = filetable_add(filetable, filehandle);
 
 	if(fd == -1){
-		return EMFILE;
 		lock_release(filehandle->fh_lock);
+		return EMFILE;
 	}
 
 	*retaddr = fd;

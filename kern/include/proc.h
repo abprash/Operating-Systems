@@ -38,6 +38,7 @@
 
 #include <spinlock.h>
 #include <filehandle.h>
+#include <limits.h>
 // #include <processtable.h>
 // #include <filetable.h>
 
@@ -93,13 +94,15 @@ struct proc {
 	unsigned excode;
 };
 
+
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
 
 /* The processtable for user processes */
-extern struct proc **processtable;
+extern struct proc *processtable[128];
 
 extern struct lock *ptlock;
+
 
 
 /* Call once during system startup to allocate data structures. */

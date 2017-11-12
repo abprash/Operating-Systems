@@ -46,8 +46,9 @@
 int
 sys_close(int fd){
 
+
 	//Gets the process' filetable
-	struct filehandle **filetable = curthread->t_proc->p_filetable;
+	struct filehandle **filetable = curproc->p_filetable;
 
 	//Checks for validity of fd
 	if(fd < 0 || fd > 63) return EBADF;
@@ -56,13 +57,8 @@ sys_close(int fd){
 	struct filehandle *filehandle = filetable[fd];
 	if(filehandle == NULL) return EBADF;
 
-	//Acquires lock if filehandle exists
-	lock_acquire(filehandle->fh_lock);
-
 	//Removes filehandle from filetable
 	filetable_remove(filetable, fd);
-	//Current filetable no longer points to the filehandle
-	if(filehandle != NULL) lock_release(filehandle->fh_lock);
 
 	return 0;
 }

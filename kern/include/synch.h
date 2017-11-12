@@ -82,7 +82,7 @@ struct lock {
         // (don't forget to mark things volatile as needed)*/
 };
 
-struct lock *lock_create(const char *name);
+struct lock *lock_create(const char *);
 void lock_destroy(struct lock *);
 
 /*

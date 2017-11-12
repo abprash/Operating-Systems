@@ -47,7 +47,7 @@ ssize_t
 sys_read(int fd, void *buf, size_t nbytes, int32_t *retaddr){
 
   //Get's the current process' filetable
-  struct filehandle **filetable = curthread->t_proc->p_filetable;
+  struct filehandle **filetable = curproc->p_filetable;
   KASSERT(filetable != NULL);
 
   //Checks if the given fd is a valid index, if not, return error
@@ -71,25 +71,23 @@ sys_read(int fd, void *buf, size_t nbytes, int32_t *retaddr){
   lock_acquire(filehandle->fh_lock);
 
   //Allocate space for uio and iovec to assure they arn't passed in unitialized
-  struct uio *uio = kmalloc(sizeof(uio));
-  struct iovec *iovec = kmalloc(sizeof(iovec));
+  struct uio uio;
+  struct iovec iovec;
 
   //Initialize the uio with a userpointer
-  uio_uinit(iovec, uio, buf, nbytes, filehandle->fh_offset, UIO_READ, curthread->t_proc->p_addrspace);
+  uio_uinit(&iovec, &uio, buf, nbytes, filehandle->fh_offset, UIO_READ, curproc->p_addrspace);
 
   //Writes to the file for us
-  int result = VOP_READ(filehandle->fh_fileobj, uio);
+  int result = VOP_READ(filehandle->fh_fileobj, &uio);
   if(result){
     //signal error return by vop_read
-    kfree(uio);
-    kfree(iovec);
     lock_release(filehandle->fh_lock);
     return result;
   }
 
 
   //Calculates how much of the read we wanted done was actually done
-  int32_t retval = nbytes - uio->uio_resid;
+  int32_t retval = nbytes - uio.uio_resid;
 
   //update the filehandles seek position based on how much was read
   filehandle->fh_offset += retval;

@@ -103,6 +103,7 @@ sys_execv(const char *prognam, char **args){
 		vfs_close(v);
 		return ENOMEM;
 	}
+	struct addrspace *oldas = curproc->p_addrspace;
 	//set the addrspace to the current process'
 	proc_setas(as);
 	//activate the process
@@ -139,6 +140,8 @@ sys_execv(const char *prognam, char **args){
 	copyout( &final_args[0], (userptr_t) upper2, sizeof(char) * size_with_pad);
 	for(int i=0; i<size_with_pad; i++){
 	 }
+
+	as_destroy(oldas);
 
 	enter_new_process(arg_count,
 			(userptr_t) bottom_of_stack,

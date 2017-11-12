@@ -40,13 +40,13 @@
  */
 
 void
-sys__exit(int exitcode){
+sys__exit(int exitcode, bool fatal){
 
-  int exit = _MKWAIT_EXIT(exitcode);
-
+  int exit;
+  if(fatal) exit = _MKWAIT_CORE(exitcode);
+  else exit = _MKWAIT_EXIT(exitcode);
   curproc->excode = exit;
   curproc->exstatus = true;
   V(curproc->p_sem);
-  filetable_destroy(curproc->p_filetable);
   thread_exit();
 }

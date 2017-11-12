@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2000, 2001, 2002, 2003, 2004, 2005, 2008, 2009
- *	The President and Fellows of Harvard College.
+ *  The President and Fellows of Harvard College.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,27 +40,47 @@
 #include <machine/vm.h>
 #include <types.h>
 #include <spinlock.h>
+#include "opt-dumbvm.h"
+#include <addrspace.h>
 
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
-
-
+//Coremap entires that represent physical memory
 struct ppage{
   unsigned int valid: 1;
+  unsigned int kern: 1;
   unsigned int chunk: 12;
-
+  //recently used
+  unsigned int touched: 1;
+  unsigned int swapping: 1;
+  struct pte *pte;
 };
 
-struct lpage{
-  paddr_t paddr;
-  struct spinlock lp_spinlock;
+//Swaptable entries that represent swapdisk
+struct slot{
+  unsigned int occupied: 1;
 };
+
+extern struct slot *swaptable;
+extern struct lock *swaptable_lock;
+extern int swap_pcount;
+extern struct vnode *swapdisk;
+extern struct ppage *coremap;
+extern struct spinlock cm_lock;
+extern bool haveswap;
+
+//Called in getppages to evict a ppage
+paddr_t swapout(bool, bool);
+
+//Sets the recently touched bit in the coremap entry given
+void cm_touch(paddr_t);
 
 
 void cm_bootstrap(void);
+void swap_bootstrap(void);
 
 /* Initialization function */
 void vm_bootstrap(void);
@@ -69,9 +89,15 @@ void vm_bootstrap(void);
 int vm_fault(int faulttype, vaddr_t faultaddress);
 
 /* Allocate/free kernel heap pages (called by kmalloc/kfree) */
+#if OPT_DUMBVM
+#else
+paddr_t getppages(unsigned long npages, bool kern, bool swapping);
+#endif
 vaddr_t alloc_kpages(unsigned npages);
 void free_kpages(vaddr_t addr);
 
+void printPageTable(void);
+void printCoreMap(void);
 /*
  * Return amount of memory (in bytes) used by allocated coremap pages.  If
  * there are ongoing allocations, this value could change after it is returned
